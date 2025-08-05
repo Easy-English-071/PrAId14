@@ -14,7 +14,7 @@
     <div class="w-full max-w-3xl mx-auto p-4">
         <!-- Header Section -->
         <header class="text-center mb-8 fade-in relative">
-            <h1 class="text-6xl md:text-7xl font-bold text-text-light font-logo">PrAI</h1>
+            <h1 class="text-6xl md:text-7xl font-bold font-logo">PrAI</h1>
             <p class="text-text-secondary">Trợ lý luyện phát âm AI của bạn</p>
         </header>
 
@@ -72,7 +72,7 @@
                                     </div>
                                 </div>
                                 <div class="space-y-2">
-                                    <p id="detailed-ipa-text" class="text-xl text-accent tracking-wider"></p>
+                                    <p id="detailed-ipa-text" class="text-xl text-accent-primary tracking-wider"></p>
                                     <div id="thought-group-display" class="text-lg text-text-primary tracking-wide leading-relaxed"></div>
                                 </div>
                            </div>
@@ -83,18 +83,17 @@
                       </div>
                  </div>
 
-                <div class="flex items-center justify-center gap-4 pt-4">
-                    <button id="listen-again-btn" disabled class="btn-icon btn-secondary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                    </button>
-                     <button id="record-btn" class="btn-record">
+                <div class="flex items-center justify-center gap-6 pt-4 h-28">
+                    <button id="record-btn" class="btn-record">
                         <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
                         <span class="text">Ghi âm</span>
                     </button>
-                     <div id="waveform-container" class="hidden h-14 w-full card-layer-inset flex items-center justify-center p-2">
-                         <canvas id="waveform" class="w-full h-full"></canvas>
-                         <p id="recording-text" class="hidden absolute text-text-light bg-bg-dark/50 px-3 py-1 rounded-lg font-medium">Đang ghi âm...</p>
+                    <div id="waveform-container" class="hidden h-20 w-full card-layer-inset flex items-center justify-center p-2">
+                        <canvas id="waveform" class="w-full h-full"></canvas>
                     </div>
+                    <button id="listen-again-btn" disabled class="btn-icon btn-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                    </button>
                 </div>
             </section>
 

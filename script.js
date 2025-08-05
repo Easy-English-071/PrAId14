@@ -20,7 +20,6 @@ const suggestionLinks = document.getElementById('suggestion-links');
 const messageBox = document.getElementById('message-box');
 const waveformContainer = document.getElementById('waveform-container');
 const waveformEl = document.getElementById('waveform');
-const recordingText = document.getElementById('recording-text');
 const replayAudio = document.getElementById('replay-audio');
 const funFactEl = document.getElementById('fun-fact');
 const showMoreBtn = document.getElementById('show-more-btn');
@@ -91,15 +90,15 @@ const practiceSentences = [
 ];
 
 const thoughtGroupColors = [
-    'border-secondary text-secondary', 
-    'border-accent text-accent', 
-    'border-primary text-primary',
-    'border-green-600 text-green-600'
+    'bg-blue-500/10 text-blue-300', 
+    'bg-green-500/10 text-green-300', 
+    'bg-purple-500/10 text-purple-300',
+    'bg-yellow-500/10 text-yellow-300'
 ];
 
 
 // API Configuration
-const apiKey = "AIzaSyBa0ieUPwXxb-W_fFHbB-ldEJG8-sAFxN0"; // API key will be managed by the environment
+const apiKey = ""; // API key will be managed by the environment
 const TEXT_MODEL = "gemini-2.5-flash-preview-05-20";
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${apiKey}`;
@@ -111,10 +110,10 @@ const TTS_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${T
 function showMessage(message, type = 'info') {
     const baseClasses = 'fixed bottom-5 right-5 p-4 rounded-xl text-sm z-50 shadow-lg border fade-in';
     const typeClasses = {
-        'info': 'bg-blue-900/80 text-blue-300 border-blue-500/30',
-        'success': 'bg-green-900/80 text-green-300 border-green-500/30',
-        'warning': 'bg-yellow-900/80 text-yellow-300 border-yellow-500/30',
-        'error': 'bg-red-900/80 text-red-300 border-red-500/30'
+        'info': 'bg-accent-primary/20 text-blue-300 border-accent-primary/30',
+        'success': 'bg-accent-success/20 text-green-300 border-accent-success/30',
+        'warning': 'bg-accent-warning/20 text-yellow-300 border-accent-warning/30',
+        'error': 'bg-accent-danger/20 text-red-300 border-accent-danger/30'
     };
     messageBox.className = `${baseClasses} ${typeClasses[type]}`;
     messageBox.textContent = message;
@@ -552,7 +551,7 @@ function displayResults(data) {
 
     analysisResults.classList.remove('hidden');
     overallScore.textContent = `${data.overall_score}`;
-    overallScore.className = `${data.overall_score > 85 ? 'text-green-600' : data.overall_score > 70 ? 'text-yellow-500' : 'text-red-500'}`;
+    overallScore.className = `${data.overall_score > 85 ? 'text-green-400' : data.overall_score > 70 ? 'text-yellow-400' : 'text-red-400'}`;
     
     phonemeAnalysis.innerHTML = '';
     if (data.phoneme_analysis) {
@@ -581,8 +580,8 @@ function displayResults(data) {
 
     if (data.stress_analysis) {
         stressAnalysis.innerHTML = data.stress_analysis.feedback;
-        stressAnalysis.classList.toggle('text-green-700', data.stress_analysis.correctly_placed);
-        stressAnalysis.classList.toggle('text-red-700', !data.stress_analysis.correctly_placed);
+        stressAnalysis.classList.toggle('text-green-400', data.stress_analysis.correctly_placed);
+        stressAnalysis.classList.toggle('text-red-400', !data.stress_analysis.correctly_placed);
     }
     
     if (data.thought_group_analysis && data.thought_group_analysis.feedback) {
@@ -601,10 +600,10 @@ function displayResults(data) {
                 const itemEl = document.createElement('div');
                 itemEl.className = 'space-y-1';
                 itemEl.innerHTML = `
-                    <h5 class="font-semibold text-primary">${item.type}</h5>
-                    <p class="text-sm"><strong class="font-medium text-text-primary">Quy tắc:</strong> ${item.rule}</p>
-                    <p class="text-sm"><strong class="font-medium text-text-primary">Ví dụ:</strong> <span class="ipa-text text-accent">${item.example}</span></p>
-                    <p class="text-sm"><strong class="font-medium text-text-primary">Nhận xét:</strong> ${item.feedback}</p>
+                    <h5 class="font-semibold text-accent-primary">${item.type}</h5>
+                    <p class="text-sm"><strong class="font-medium text-text-secondary">Quy tắc:</strong> ${item.rule}</p>
+                    <p class="text-sm"><strong class="font-medium text-text-secondary">Ví dụ:</strong> <span class="ipa-text text-accent-warning">${item.example}</span></p>
+                    <p class="text-sm"><strong class="font-medium text-text-secondary">Nhận xét:</strong> ${item.feedback}</p>
                 `;
                 connectedSpeechAnalysis.appendChild(itemEl);
             });
@@ -719,10 +718,9 @@ function handleListenAgain() {
 }
 
 function startWaveform(stream) {
-    recordBtn.querySelector('.text').style.display = 'none';
-    recordBtn.querySelector('.icon').style.display = 'none';
+    recordBtn.style.display = 'none';
+    listenAgainBtn.style.display = 'none';
     waveformContainer.classList.remove('hidden');
-    recordingText.classList.remove('hidden');
     
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioContext.createAnalyser();
@@ -753,8 +751,8 @@ function startWaveform(stream) {
         for (let i = 0; i < bufferLength; i++) {
             const barHeight = dataArray[i] / 2.5;
             const gradient = canvasCtx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
-            gradient.addColorStop(0, '#8EB69B');
-            gradient.addColorStop(1, '#235347');
+            gradient.addColorStop(0, 'var(--accent-primary)');
+            gradient.addColorStop(1, 'var(--accent-success)');
             canvasCtx.fillStyle = gradient;
             canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
             x += barWidth + 1;
@@ -766,10 +764,9 @@ function startWaveform(stream) {
 function stopWaveform() {
     if (waveformAnimationId) cancelAnimationFrame(waveformAnimationId);
     if (audioContext && audioContext.state !== 'closed') audioContext.close();
-    recordBtn.querySelector('.text').style.display = 'block';
-    recordBtn.querySelector('.icon').style.display = 'block';
+    recordBtn.style.display = 'flex';
+    listenAgainBtn.style.display = 'inline-flex';
     waveformContainer.classList.add('hidden');
-    recordingText.classList.add('hidden');
 }
 
 function toggleAdvancedAnalysis() {
