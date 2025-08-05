@@ -98,7 +98,7 @@ const thoughtGroupColors = [
 
 
 // API Configuration
-const apiKey = ""; // API key will be managed by the environment
+const apiKey = "AIzaSyBa0ieUPwXxb-W_fFHbB-ldEJG8-sAFxN0"; // API key will be managed by the environment
 const TEXT_MODEL = "gemini-2.5-flash-preview-05-20";
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${apiKey}`;
