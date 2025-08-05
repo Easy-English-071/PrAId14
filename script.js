@@ -1,8 +1,3 @@
-// Firebase Imports
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, doc, setDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
 // DOM Elements
 const textInput = document.getElementById('text-input');
 const accentSelect = document.getElementById('accent-select');
@@ -32,18 +27,14 @@ const showMoreBtn = document.getElementById('show-more-btn');
 const advancedAnalysis = document.getElementById('advanced-analysis');
 const intonationAnalysis = document.getElementById('intonation-analysis');
 const connectedSpeechAnalysis = document.getElementById('connected-speech-analysis');
-const themeToggle = document.getElementById('theme-toggle');
-const themeIconLight = document.getElementById('theme-icon-light');
-const themeIconDark = document.getElementById('theme-icon-dark');
 const progressText = document.getElementById('progress-text');
 const charCounter = document.getElementById('char-counter');
-const historyToggle = document.getElementById('history-toggle');
-const historyPanel = document.getElementById('history-panel');
-const closeHistoryPanel = document.getElementById('close-history-panel');
-const historyList = document.getElementById('history-list');
-const noHistoryMessage = document.getElementById('no-history-message');
-const panelOverlay = document.getElementById('panel-overlay');
-const historyAudio = document.getElementById('history-audio');
+const thoughtGroupDisplay = document.getElementById('thought-group-display');
+const thoughtGroupInfo = document.getElementById('thought-group-info');
+const thoughtGroupTooltip = document.getElementById('thought-group-tooltip');
+const thoughtGroupAnalysisResult = document.getElementById('thought-group-analysis-result');
+const thoughtGroupFeedback = document.getElementById('thought-group-feedback');
+
 
 // State variables
 let isRecording = false;
@@ -66,10 +57,7 @@ let lastTTSAccentClear = '';
 let fetchIpaRequestID = 0;
 let progressInterval;
 let progressTextInterval;
-
-// Firebase State
-let db, auth, userId;
-let historyUnsubscribe = null;
+let currentThoughtGroups = [];
 
 // --- DATA & CONFIG ---
 const funFacts = [
@@ -80,22 +68,14 @@ const funFacts = [
     "'Strengths' là từ dài nhất chỉ có một nguyên âm.",
     "'Rhythms' là từ dài nhất không có nguyên âm (a, e, i, o, u).",
     "'Bookkeeper' là từ duy nhất có ba cặp chữ cái lặp lại liên tiếp.",
-    "Crutch Words (Từ đệm): Những từ như 'like', 'actually', 'basically', 'literally' thường được dùng làm từ đệm trong giao tiếp hàng ngày mà không thêm nhiều ý nghĩa.",
-    "Câu 'Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo.' là một câu đúng ngữ pháp, sử dụng ba nghĩa của từ 'buffalo' (trâu, thành phố Buffalo, và động từ 'doạ nạt').",
-    "Âm 'gh' khó đoán: 'gh' có thể được phát âm là /f/ như trong 'enough', /g/ như trong 'ghost', hoặc câm như trong 'though'.",
-    "Từ 'set' giữ kỷ lục: Từ 'set' có nhiều định nghĩa nhất trong tiếng Anh, với hơn 430 nghĩa khác nhau trong Từ điển Oxford.",
+    "Câu 'Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo.' là một câu đúng ngữ pháp.",
+    "Từ 'set' có nhiều định nghĩa nhất trong tiếng Anh, với hơn 430 nghĩa khác nhau.",
     "'Queueing' là từ duy nhất có năm nguyên âm đi liền nhau.",
     "'I am' là câu hoàn chỉnh ngắn nhất trong tiếng Anh.",
-    "Câu 'The quick brown fox jumps over the lazy dog' chứa tất cả 26 chữ cái trong bảng chữ cái.",
+    "Câu 'The quick brown fox jumps over the lazy dog' chứa tất cả 26 chữ cái.",
     "Không có từ nào trong tiếng Anh vần với 'month', 'orange', 'silver' hay 'purple'.",
     "'Uncopyrightable' là từ dài nhất không lặp lại bất kỳ chữ cái nào.",
-    "Từ dài nhất trong từ điển là 'pneumonoultramicroscopicsilicovolcanoconiosis' (một loại bệnh phổi).",
-    "Shakespeare đã sáng tạo ra hơn 1,700 từ cho tiếng Anh, ví dụ như 'eyeball', 'swagger', 'bedazzled'.",
-    "Từ 'lol' (laughing out loud) đã được thêm vào từ điển Oxford vào năm 2011.",
-    "'SWIMS' khi lộn ngược lại vẫn là 'SWIMS'.",
-    "'Stewardesses' là từ dài nhất có thể gõ chỉ bằng tay trái trên bàn phím QWERTY.",
-    "Từ 'dreamt' là từ duy nhất kết thúc bằng '-mt'.",
-    "Chữ cái được sử dụng nhiều nhất là 'e', và chữ cái bắt đầu nhiều từ nhất là 's'."
+    "Shakespeare đã sáng tạo ra hơn 1,700 từ cho tiếng Anh, ví dụ như 'eyeball', 'swagger', 'bedazzled'."
 ];
 
 const practiceSentences = [
@@ -107,14 +87,19 @@ const practiceSentences = [
     "What do you think?", "That sounds great.", "That's a good idea.", "I have no idea.",
     "I'm not sure.", "Could you give me a hand with this?", "Piece of cake", "Break a leg",
     "Under the weather", "Hit the books", "Call it a day", "What have you been up to?",
-    "Is everything okay?", "Take care.", "Let me know if you need anything.", "I'm here for you.",
-    "Can I have your attention, please?", "Let's get down to business.", "How much is this?",
-    "Do you have this in a different size?", "I'm just browsing, thanks.", "I'll take it.",
-    "Keep the change.", "Could I have the bill, please?", "It's on me.", "Let's split the bill."
+    "Is everything okay?", "Take care.", "Let me know if you need anything.", "I'm here for you."
 ];
 
+const thoughtGroupColors = [
+    'border-secondary text-secondary', 
+    'border-accent text-accent', 
+    'border-primary text-primary',
+    'border-green-600 text-green-600'
+];
+
+
 // API Configuration
-const apiKey = "AIzaSyBa0ieUPwXxb-W_fFHbB-ldEJG8-sAFxN0"; // API key is provided by the environment
+const apiKey = "AIzaSyBa0ieUPwXxb-W_fFHbB-ldEJG8-sAFxN0"; // API key will be managed by the environment
 const TEXT_MODEL = "gemini-2.5-flash-preview-05-20";
 const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${apiKey}`;
@@ -124,13 +109,14 @@ const TTS_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${T
 // --- UTILITY FUNCTIONS ---
 
 function showMessage(message, type = 'info') {
-    const colors = {
-        'info': 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/80 dark:text-blue-300 dark:border-blue-500/30',
-        'success': 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/80 dark:text-green-300 dark:border-green-500/30',
-        'warning': 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/80 dark:text-yellow-300 dark:border-yellow-500/30',
-        'error': 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/80 dark:text-red-300 dark:border-red-500/30'
+    const baseClasses = 'fixed bottom-5 right-5 p-4 rounded-xl text-sm z-50 shadow-lg border fade-in';
+    const typeClasses = {
+        'info': 'bg-blue-900/80 text-blue-300 border-blue-500/30',
+        'success': 'bg-green-900/80 text-green-300 border-green-500/30',
+        'warning': 'bg-yellow-900/80 text-yellow-300 border-yellow-500/30',
+        'error': 'bg-red-900/80 text-red-300 border-red-500/30'
     };
-    messageBox.className = `fixed bottom-5 right-5 p-4 rounded-xl text-sm z-50 shadow-lg border ${colors[type]} fade-in`;
+    messageBox.className = `${baseClasses} ${typeClasses[type]}`;
     messageBox.textContent = message;
     messageBox.classList.remove('hidden');
     setTimeout(() => messageBox.classList.add('hidden'), 5000);
@@ -146,17 +132,17 @@ function handleApiError(error) {
 }
 
 function setButtonLoading(button, isLoading) {
-    const textEl = button.querySelector('.text') || button.querySelector('span');
+    const textEl = button.querySelector('.text');
     const iconEl = button.querySelector('.icon');
     const spinnerEl = button.querySelector('.btn-spinner');
     button.disabled = isLoading;
     if (isLoading) {
-        if(textEl) textEl.classList.add('hidden');
-        if(iconEl) iconEl.classList.add('hidden');
+        if(textEl) textEl.style.display = 'none';
+        if(iconEl) iconEl.style.display = 'none';
         if(spinnerEl) spinnerEl.classList.remove('hidden');
     } else {
-        if(textEl) textEl.classList.remove('hidden');
-        if(iconEl) iconEl.classList.remove('hidden');
+        if(textEl) textEl.style.display = 'inline';
+        if(iconEl) iconEl.style.display = 'block';
         if(spinnerEl) spinnerEl.classList.add('hidden');
     }
 }
@@ -205,33 +191,33 @@ function pcmToWav(pcmData, sampleRate) {
 // --- API & CORE LOGIC ---
 
 async function fetchWithBackoff(url, options, maxRetries = 4) {
-     let delay = 1000; // start with 1 second
-     for (let i = 0; i < maxRetries; i++) {
-         try {
-             const response = await fetch(url, options);
-             if (response.status === 429 || response.status >= 500) {
-                 if (i === maxRetries - 1) {
-                     const errorBody = await response.json().catch(() => ({}));
-                     throw new Error(`API Error: ${response.status}. ${errorBody.error?.message || 'Server error after multiple retries.'}`);
-                 }
-                 await new Promise(resolve => setTimeout(resolve, delay));
-                 delay *= 2; 
-                 continue; 
-             }
-             if (!response.ok) {
-                  const errorBody = await response.json().catch(() => ({}));
-                  throw new Error(`API Error: ${response.status}. ${errorBody.error?.message || 'An unknown error occurred.'}`);
-             }
-             return await response.json();
-         } catch (error) {
-             if (i === maxRetries - 1) {
-                 throw error;
-             }
-             await new Promise(resolve => setTimeout(resolve, delay));
-             delay *= 2;
-         }
-     }
-}
+      let delay = 1000;
+      for (let i = 0; i < maxRetries; i++) {
+          try {
+              const response = await fetch(url, options);
+              if (response.status === 429 || response.status >= 500) {
+                  if (i === maxRetries - 1) {
+                      const errorBody = await response.json().catch(() => ({}));
+                      throw new Error(`API Error: ${response.status}. ${errorBody.error?.message || 'Server error after multiple retries.'}`);
+                  }
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  delay *= 2; 
+                  continue; 
+              }
+              if (!response.ok) {
+                   const errorBody = await response.json().catch(() => ({}));
+                   throw new Error(`API Error: ${response.status}. ${errorBody.error?.message || 'An unknown error occurred.'}`);
+              }
+              return await response.json();
+          } catch (error) {
+              if (i === maxRetries - 1) {
+                  throw error;
+              }
+              await new Promise(resolve => setTimeout(resolve, delay));
+              delay *= 2;
+          }
+      }
+  }
 
 function startIpaLoadingAnimation() {
     clearInterval(ipaLoadingInterval);
@@ -241,6 +227,7 @@ function startIpaLoadingAnimation() {
         const symbolSequence = Array(5).fill(0).map((_, j) => ipaSymbols[(i + j) % ipaSymbols.length]).join(' ');
         simpleIpaText.textContent = `/ ${symbolSequence} /`;
         detailedIpaText.textContent = `[ ${symbolSequence} ]`;
+        thoughtGroupDisplay.textContent = `...`;
         i = (i + 1) % ipaSymbols.length;
     }, 100);
 }
@@ -261,17 +248,24 @@ async function fetchAndDisplayIPA() {
     
     if (ipaForText === text && accentSelect.value === document.body.dataset.accent) {
         controlsSection.classList.remove('hidden');
+        thoughtGroupInfo.classList.toggle('hidden', !text.includes(' '));
         return true;
     }
 
     const accent = accentSelect.value;
-    const combinedPrompt = `For the phrase "${text}" in ${accent}, provide two IPA transcriptions in a single JSON object.
-    1.  'simple': A standard transcription with each word transcribed individually.
-    2.  'detailed': A natural, connected speech transcription, including features like linking (liaison with the tie bar symbol ‿), elision, assimilation, and intrusion where phonologically appropriate.
-    Respond with ONLY the JSON object. Example for "an apple": {"simple": "/ən ˈæpəl/", "detailed": "/ən‿ˈæpəl/"}`;
+    const combinedPrompt = `For the phrase "${text}" in ${accent}, provide a single JSON object with the following keys:
+    1.  'simple': A standard, citation-form IPA transcription.
+    2.  'detailed': A natural, connected speech transcription. IMPORTANT: This transcription must reflect the thought groups. Show linking (liaison with ‿) **only within** each thought group, not across them. The boundary between groups acts as a hard stop for linking.
+    3.  'thought_groups': An object containing two keys:
+        a. 'groups': An array of strings, where each string is a natural thought group.
+        b. 'explanation': A brief, clear explanation in Vietnamese for why the text is divided that way, based on grammatical boundaries. Start by stating that this is a suggested grouping and other ways are possible depending on emphasis (e.g., "Đây là một cách ngắt nghỉ phổ biến, giúp tách... Tuy nhiên, bạn cũng có thể ngắt khác đi để nhấn mạnh...").
+    Respond with ONLY the JSON object.`;
     
     setButtonLoading(transcribeBtn, true);
     controlsSection.classList.remove('hidden');
+    thoughtGroupDisplay.classList.toggle('hidden', !text.includes(' '));
+    thoughtGroupInfo.classList.toggle('hidden', !text.includes(' '));
+    
     startIpaLoadingAnimation();
     
     try {
@@ -297,6 +291,14 @@ async function fetchAndDisplayIPA() {
         
         simpleIpaText.textContent = resultJson.simple;
         detailedIpaText.textContent = resultJson.detailed;
+
+        if (resultJson.thought_groups && text.includes(' ')) {
+            currentThoughtGroups = resultJson.thought_groups.groups;
+            displayThoughtGroups(resultJson.thought_groups.groups, resultJson.thought_groups.explanation);
+        } else {
+            currentThoughtGroups = [];
+            displayThoughtGroups([], '');
+        }
         
         return true;
     } catch (error) {
@@ -313,6 +315,21 @@ async function fetchAndDisplayIPA() {
     }
 }
 
+function displayThoughtGroups(groups, explanation) {
+    thoughtGroupDisplay.innerHTML = '';
+    thoughtGroupTooltip.textContent = explanation || '';
+    thoughtGroupInfo.classList.toggle('hidden', !explanation);
+
+    if (groups && groups.length > 0) {
+        groups.forEach((group, index) => {
+            const groupSpan = document.createElement('span');
+            groupSpan.textContent = group;
+            groupSpan.className = `thought-group ${thoughtGroupColors[index % thoughtGroupColors.length]}`;
+            thoughtGroupDisplay.appendChild(groupSpan);
+        });
+    }
+}
+
 async function handleListen(type, button) {
     const text = textInput.value.trim();
     const accent = accentSelect.value;
@@ -322,9 +339,13 @@ async function handleListen(type, button) {
     }
     
     const isNatural = type === 'natural';
-    const cachedAudio = isNatural ? lastTTSAudioNatural : lastTTSAudioClear;
-    const cachedText = isNatural ? lastTTSTextNatural : lastTTSTextClear;
-    const cachedAccent = isNatural ? lastTTSAccentNatural : lastTTSAccentClear;
+    
+    let cachedAudio, cachedText, cachedAccent;
+    if (isNatural) {
+        [cachedAudio, cachedText, cachedAccent] = [lastTTSAudioNatural, lastTTSTextNatural, lastTTSAccentNatural];
+    } else { // Clear
+        [cachedAudio, cachedText, cachedAccent] = [lastTTSAudioClear, lastTTSTextClear, lastTTSAccentClear];
+    }
 
     if (cachedAudio && cachedText === text && cachedAccent === accent) {
         cachedAudio.play();
@@ -336,9 +357,13 @@ async function handleListen(type, button) {
 
     setButtonLoading(button, true);
     try {
-        const prompt = isNatural 
-            ? `In ${accent}, pronounce the phrase "${text}" to sound exactly like this phonetic transcription: ${detailedIpaText.textContent}. Only generate the audio of the spoken phrase.`
-            : `Say very clearly, with only a slight pause between each word, in ${accent}: ${text}`;
+        let prompt;
+        if (isNatural) {
+            const textWithPauses = currentThoughtGroups.join(", ");
+            prompt = `Read the following text in ${accent}. Pronounce it naturally, with very brief, subtle pauses where the commas appear, ensuring you link all words smoothly within each phrase. The goal is a fluid, connected speech, not a series of disconnected chunks. Text: ${textWithPauses}`;
+        } else { // Clear
+            prompt = `Say very clearly, with only a slight pause between each word, in ${accent}: ${text}`;
+        }
 
         const payload = {
             contents: [{ parts: [{ text: prompt }] }],
@@ -366,13 +391,9 @@ async function handleListen(type, button) {
             audio.play();
 
             if(isNatural) {
-                lastTTSAudioNatural = audio;
-                lastTTSTextNatural = text;
-                lastTTSAccentNatural = accent;
+                [lastTTSAudioNatural, lastTTSTextNatural, lastTTSAccentNatural] = [audio, text, accent];
             } else {
-                lastTTSAudioClear = audio;
-                lastTTSTextClear = text;
-                lastTTSAccentClear = accent;
+                [lastTTSAudioClear, lastTTSTextClear, lastTTSAccentClear] = [audio, text, accent];
             }
         } else {
             throw new Error("Không nhận được dữ liệu âm thanh hợp lệ.");
@@ -416,7 +437,7 @@ function startProgressTextAnimation() {
         "Đang gửi bản ghi âm của bạn...",
         "AI đang phiên âm giọng nói...",
         "Đối chiếu với phiên âm chuẩn...",
-        "Phân tích ngữ điệu và nối âm...",
+        "Phân tích ngữ điệu và cụm tư duy...",
         "Sắp xong rồi! Đang tổng hợp kết quả..."
     ];
     let currentStep = 0;
@@ -426,7 +447,7 @@ function startProgressTextAnimation() {
     progressTextInterval = setInterval(() => {
         currentStep = (currentStep + 1) % steps.length;
         progressText.textContent = steps[currentStep];
-    }, 2000); // Change text every 2 seconds
+    }, 2000);
 }
 
 function stopProgressTextAnimation() {
@@ -438,8 +459,6 @@ async function analyzeAudio() {
     if (audioChunks.length === 0) return;
     lastRecordingBlob = new Blob(audioChunks, { type: 'audio/webm' });
     listenAgainBtn.disabled = false;
-    listenAgainBtn.classList.remove('bg-gray-300', 'text-gray-500', 'dark:bg-gray-600', 'dark:text-gray-400');
-    listenAgainBtn.classList.add('btn-replay');
 
     let ipaReady = (ipaForText === textInput.value.trim() && accentSelect.value === document.body.dataset.accent);
     if (!ipaReady) {
@@ -463,25 +482,28 @@ async function analyzeAudio() {
         const isSentence = textInput.value.trim().includes(' ');
         
         const prompt = {
-            "role": "You are PrAI, a world-class phonetician. Your expertise is informed by the key findings in the document 'Phân Tích Ngữ Âm Học Toàn Diện về Các Lỗi Phát Âm Tiếng Anh Thường Gặp của Người Việt'.",
+            "role": "You are PrAI, a world-class phonetician...",
             "context": {
                 "text_to_pronounce": textInput.value.trim(),
                 "target_accent": accentSelect.value === 'American English' ? 'AmE' : 'BrE',
                 "standard_ipa": standardIPA,
+                "ideal_thought_groups": currentThoughtGroups.join(' / '),
                 "is_sentence": isSentence,
                 "phonetic_guidelines": {
                     "instruction": "Your feedback must be gentle, encouraging, detailed, positive, and constructive. It must be scientifically rigorous and natural-sounding. **Crucially, you must always address the user as 'bạn' and never as 'con'.**",
                     "vietnamese_learner_focus": [
-                        "Pay special attention to common Vietnamese L1 interference patterns as described in your knowledge base: final consonant deletion (e.g., 'nice' -> /naɪ/), incorrect vowel length (e.g., /i:/ vs /ɪ/), difficulty with consonant clusters, and a syllable-timed rhythm instead of a stress-timed one.",
-                        "Analyze connected speech phenomena (assimilation, elision, linking)."
+                        "Pay special attention to common Vietnamese L1 interference patterns: final consonant deletion, incorrect vowel length, difficulty with consonant clusters, and a syllable-timed rhythm.",
+                        "Analyze connected speech phenomena (assimilation, elision, linking) *within* thought groups.",
+                        "Crucially, a pause *between* thought groups breaks the phonetic link. Your analysis must reflect this."
                     ]
                 }
             },
-            "task": `First, determine if the audio contains discernible English speech. If not, set 'speech_detected' to false and return immediately. If speech is detected, perform a scientifically rigorous analysis based on your knowledge of Vietnamese speakers' common errors.
-            1.  **Phoneme Analysis (Strict):** You MUST analyze every single phoneme from the 'standard_ipa' provided in the context. The returned 'phoneme_analysis' array must contain an object for each phoneme, in the exact same order as they appear in the 'standard_ipa' string. Do not skip any phonemes.
-            2.  **Scoring:** Provide an 'overall_score' (0-100) based on the complete analysis.
-            3.  **Other Analysis & Feedback:** Analyze stress, and, if it's a sentence, intonation and connected speech. Adopt a gentle and encouraging tone. Prioritize feedback based on impact on intelligibility.
-            4.  **Mandatory Detailed Feedback:** For sentences, **always** provide feedback for 'advanced_analysis' (intonation and connected speech). Even if the user's pronunciation is good, provide positive reinforcement and explain what they did correctly (e.g., "Bạn đã nối âm rất tốt ở '...'). If no connected speech phenomena were expected or produced, state that clearly.
+            "task": `First, determine if the audio contains discernible English speech. If not, set 'speech_detected' to false and return. If speech is detected, perform a scientifically rigorous analysis.
+            1.  **Phoneme Analysis (Strict):** You MUST analyze every single phoneme from the 'standard_ipa'. The 'phoneme_analysis' array MUST contain an object for each phoneme, in the exact same order.
+            2.  **Scoring:** Provide an 'overall_score' (0-100).
+            3.  **Thought Group Analysis (if sentence):** Analyze the user's pausing and rhythm.
+            4.  **Other Analysis & Feedback:** Analyze stress, and, if it's a sentence, intonation and connected speech.
+            5.  **Mandatory Detailed Feedback:** For sentences, **always** provide feedback for 'advanced_analysis'.
             Return the result in the specified JSON format.`,
             "output_format_instruction": {
                 "format": "JSON",
@@ -491,6 +513,7 @@ async function analyzeAudio() {
                     "user_ipa": "string | null",
                     "phoneme_analysis": "[ { \"phoneme\": \"string\", \"status\": \"string ('correct', 'approximate', 'incorrect')\", \"feedback\": \"string | null\" } ] | null",
                     "stress_analysis": "{ \"correctly_placed\": \"boolean\", \"feedback\": \"string\" } | null",
+                    "thought_group_analysis?": "{ \"feedback\": \"string\" } | null",
                     "advanced_analysis?": "{ \"intonation\": { \"feedback\": \"string\" }, \"connected_speech\": [ { \"type\": \"string\", \"rule\": \"string\", \"example\": \"string\", \"explanation\": \"string\", \"feedback\": \"string\" } ] } | null",
                     "practice_suggestions": "{ \"youglish_us\": \"string\", \"youglish_uk\": \"string\" } | null"
                 }
@@ -507,10 +530,6 @@ async function analyzeAudio() {
             const resultText = data.candidates[0].content.parts[0].text;
             const resultJson = JSON.parse(resultText);
             displayResults(resultJson);
-            // Save to history after displaying results
-            if (resultJson.speech_detected) {
-                saveToHistory(resultJson, base64Audio);
-            }
         } catch (error) {
             handleApiError(error);
         } finally {
@@ -532,22 +551,22 @@ function displayResults(data) {
     }
 
     analysisResults.classList.remove('hidden');
-    overallScore.textContent = `${data.overall_score}/100`;
-    overallScore.className = `font-bold ${data.overall_score > 85 ? 'text-green-500' : data.overall_score > 70 ? 'text-yellow-500' : 'text-red-500'}`;
+    overallScore.textContent = `${data.overall_score}`;
+    overallScore.className = `${data.overall_score > 85 ? 'text-green-600' : data.overall_score > 70 ? 'text-yellow-500' : 'text-red-500'}`;
     
     phonemeAnalysis.innerHTML = '';
     if (data.phoneme_analysis) {
         data.phoneme_analysis.forEach(p => {
             const phonemeEl = document.createElement('div');
             phonemeEl.textContent = p.phoneme;
-            phonemeEl.className = 'phoneme p-2 rounded-md text-lg relative shadow-sm';
+            phonemeEl.className = 'phoneme has-tooltip';
             
             if (p.status === 'correct') { 
-                phonemeEl.classList.add('bg-green-100', 'dark:bg-green-500/20', 'text-green-700', 'dark:text-green-300');
+                phonemeEl.classList.add('status-correct');
             } else if (p.status === 'approximate') { 
-                phonemeEl.classList.add('bg-yellow-100', 'dark:bg-yellow-500/20', 'text-yellow-700', 'dark:text-yellow-300', 'has-tooltip');
+                phonemeEl.classList.add('status-approximate');
             } else { 
-                phonemeEl.classList.add('bg-red-100', 'dark:bg-red-500/20', 'text-red-700', 'dark:text-red-300', 'has-tooltip');
+                phonemeEl.classList.add('status-incorrect');
             }
 
             if (p.feedback) {
@@ -561,28 +580,36 @@ function displayResults(data) {
     }
 
     if (data.stress_analysis) {
-        stressAnalysis.textContent = data.stress_analysis.feedback;
-        stressAnalysis.className = `p-3 bg-input-bg rounded-lg ${data.stress_analysis.correctly_placed ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`;
+        stressAnalysis.innerHTML = data.stress_analysis.feedback;
+        stressAnalysis.classList.toggle('text-green-700', data.stress_analysis.correctly_placed);
+        stressAnalysis.classList.toggle('text-red-700', !data.stress_analysis.correctly_placed);
+    }
+    
+    if (data.thought_group_analysis && data.thought_group_analysis.feedback) {
+        thoughtGroupFeedback.innerHTML = data.thought_group_analysis.feedback;
+        thoughtGroupAnalysisResult.classList.remove('hidden');
+    } else {
+        thoughtGroupAnalysisResult.classList.add('hidden');
     }
 
+
     if (data.advanced_analysis) {
-        intonationAnalysis.textContent = data.advanced_analysis.intonation.feedback;
+        intonationAnalysis.innerHTML = data.advanced_analysis.intonation.feedback;
         connectedSpeechAnalysis.innerHTML = '';
         if (data.advanced_analysis.connected_speech && data.advanced_analysis.connected_speech.length > 0) {
             data.advanced_analysis.connected_speech.forEach(item => {
                 const itemEl = document.createElement('div');
-                itemEl.className = 'space-y-2';
+                itemEl.className = 'space-y-1';
                 itemEl.innerHTML = `
-                    <h5 class="font-semibold text-indigo-600 dark:text-indigo-400">${item.type}</h5>
-                    <p class="text-sm text-secondary"><strong class="font-medium text-primary">Quy tắc:</strong> ${item.rule}</p>
-                    <p class="text-sm text-secondary"><strong class="font-medium text-primary">Ví dụ:</strong> <span class="ipa-text text-cyan-600 dark:text-cyan-300">${item.example}</span></p>
-                    <p class="text-sm text-secondary"><strong class="font-medium text-primary">Giải thích:</strong> ${item.explanation}</p>
-                    <p class="text-sm p-2 rounded-md ${item.feedback.toLowerCase().includes('tốt') ? 'bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-300' : 'bg-yellow-100 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-300'}"><strong class="font-medium text-primary">Nhận xét:</strong> ${item.feedback}</p>
+                    <h5 class="font-semibold text-primary">${item.type}</h5>
+                    <p class="text-sm"><strong class="font-medium text-text-primary">Quy tắc:</strong> ${item.rule}</p>
+                    <p class="text-sm"><strong class="font-medium text-text-primary">Ví dụ:</strong> <span class="ipa-text text-accent">${item.example}</span></p>
+                    <p class="text-sm"><strong class="font-medium text-text-primary">Nhận xét:</strong> ${item.feedback}</p>
                 `;
                 connectedSpeechAnalysis.appendChild(itemEl);
             });
         } else {
-            connectedSpeechAnalysis.innerHTML = '<p class="text-secondary">Không phát hiện hiện tượng nối âm nổi bật trong câu này.</p>';
+            connectedSpeechAnalysis.innerHTML = '<p class="text-text-secondary">Không phát hiện hiện tượng nối âm nổi bật trong câu này.</p>';
         }
         showMoreBtn.classList.remove('hidden');
     } else {
@@ -596,13 +623,13 @@ function displayResults(data) {
         const usLink = document.createElement('a');
         usLink.href = youglish_us;
         usLink.target = '_blank';
-        usLink.className = 'btn btn-danger flex-1 text-center font-semibold py-2 px-4 rounded-lg';
+        usLink.className = 'btn btn-primary flex-1';
         usLink.textContent = 'Giọng Mỹ (YouGlish)';
         
         const ukLink = document.createElement('a');
         ukLink.href = youglish_uk;
         ukLink.target = '_blank';
-        ukLink.className = 'btn btn-primary flex-1 text-center font-semibold py-2 px-4 rounded-lg';
+        ukLink.className = 'btn btn-primary flex-1';
         ukLink.textContent = 'Giọng Anh (YouGlish)';
 
         suggestionLinks.appendChild(usLink);
@@ -613,103 +640,6 @@ function displayResults(data) {
     }
 }
 
-// --- HISTORY FUNCTIONS (NEW) ---
-
-async function saveToHistory(analysisData, audioBase64) {
-    if (!userId) {
-        console.error("User not authenticated. Cannot save history.");
-        return;
-    }
-
-    // Firestore document size limit is 1 MiB. Base64 is ~33% larger than binary.
-    // We'll set a limit of 700KB for the base64 string to be safe.
-    if (audioBase64.length > 700 * 1024) {
-        showMessage("Bản ghi âm quá dài để lưu vào lịch sử.", "warning");
-        return;
-    }
-    
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const historyRef = collection(db, 'artifacts', appId, 'users', userId, 'practiceHistory');
-
-    try {
-        await addDoc(historyRef, {
-            text: textInput.value.trim(),
-            score: analysisData.overall_score,
-            accent: accentSelect.value,
-            createdAt: new Date().toISOString(),
-            audioBase64: audioBase64
-        });
-        showMessage("Đã lưu vào lịch sử luyện tập.", "success");
-    } catch (error) {
-        console.error("Error saving to Firestore: ", error);
-        showMessage("Không thể lưu vào lịch sử.", "error");
-    }
-}
-
-function loadHistory() {
-    if (!userId) return;
-    if (historyUnsubscribe) historyUnsubscribe(); // Unsubscribe from previous listener
-
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-    const historyRef = collection(db, 'artifacts', appId, 'users', userId, 'practiceHistory');
-    const q = query(historyRef, orderBy("createdAt", "desc"));
-
-    historyUnsubscribe = onSnapshot(q, (querySnapshot) => {
-        if (querySnapshot.empty) {
-            historyList.innerHTML = ''; // Clear previous items
-            noHistoryMessage.classList.remove('hidden');
-            return;
-        }
-        
-        noHistoryMessage.classList.add('hidden');
-        historyList.innerHTML = ''; // Clear and re-render
-        querySnapshot.forEach((doc) => {
-            renderHistoryItem(doc.data());
-        });
-    }, (error) => {
-        console.error("Error loading history:", error);
-        showMessage("Không thể tải lịch sử luyện tập.", "error");
-    });
-}
-
-function renderHistoryItem(data) {
-    const itemEl = document.createElement('div');
-    itemEl.className = 'p-4 rounded-lg glass-effect bg-white/50 dark:bg-slate-800/50 flex items-center justify-between gap-3 fade-in';
-
-    const scoreColor = data.score > 85 ? 'text-green-500' : data.score > 70 ? 'text-yellow-500' : 'text-red-500';
-    const date = new Date(data.createdAt).toLocaleString('vi-VN');
-
-    itemEl.innerHTML = `
-        <div class="flex-grow overflow-hidden">
-            <p class="font-semibold text-primary truncate" title="${data.text}">"${data.text}"</p>
-            <p class="text-sm text-secondary">Điểm: <span class="font-bold ${scoreColor}">${data.score}/100</span> - ${date}</p>
-        </div>
-        <button class="play-history-btn btn btn-primary p-2 rounded-full flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-        </button>
-    `;
-
-    itemEl.querySelector('.play-history-btn').addEventListener('click', () => {
-        try {
-            const byteCharacters = atob(data.audioBase64);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const audioBlob = new Blob([byteArray], {type: 'audio/webm'});
-            const audioUrl = URL.createObjectURL(audioBlob);
-            historyAudio.src = audioUrl;
-            historyAudio.play();
-        } catch (e) {
-            console.error("Error playing history audio:", e);
-            showMessage("Không thể phát lại bản ghi âm này.", "error");
-        }
-    });
-
-    historyList.appendChild(itemEl);
-}
-
 // --- UI & EVENT HANDLERS ---
 
 function resetAnalysisOnly() {
@@ -717,6 +647,7 @@ function resetAnalysisOnly() {
     practiceSuggestions.classList.add('hidden');
     showMoreBtn.classList.add('hidden');
     advancedAnalysis.classList.add('hidden');
+    thoughtGroupAnalysisResult.classList.add('hidden');
     showMoreBtn.textContent = 'Thông tin thêm';
 }
 
@@ -731,6 +662,8 @@ function resetAll() {
     lastTTSAudioClear = null;
     lastTTSTextClear = '';
     lastTTSAccentClear = '';
+    currentThoughtGroups = [];
+    displayThoughtGroups([], '');
 }
 
 async function handleRecord() {
@@ -746,8 +679,6 @@ async function handleRecord() {
     
     resetAnalysisOnly();
     listenAgainBtn.disabled = true;
-    listenAgainBtn.classList.remove('btn-replay');
-    listenAgainBtn.classList.add('bg-gray-300', 'text-gray-500', 'dark:bg-gray-600', 'dark:text-gray-400');
     lastRecordingBlob = null;
     
     try {
@@ -762,8 +693,7 @@ async function handleRecord() {
             stopWaveform();
             stream.getTracks().forEach(track => track.stop());
             recordBtn.querySelector('.text').textContent = 'Ghi âm';
-            recordBtn.classList.remove('btn-warning');
-            recordBtn.classList.add('btn-danger');
+            recordBtn.classList.remove('is-recording');
             if (soundDetected) {
                 analyzeAudio();
             } else {
@@ -773,8 +703,7 @@ async function handleRecord() {
         mediaRecorder.start();
         startWaveform(stream);
         recordBtn.querySelector('.text').textContent = 'Dừng';
-        recordBtn.classList.remove('btn-danger');
-        recordBtn.classList.add('btn-warning');
+        recordBtn.classList.add('is-recording');
     } catch (error) {
         console.error("Error accessing microphone:", error);
         showMessage('Không thể truy cập micro. Vui lòng cấp quyền và thử lại.', 'error');
@@ -790,8 +719,11 @@ function handleListenAgain() {
 }
 
 function startWaveform(stream) {
+    recordBtn.querySelector('.text').style.display = 'none';
+    recordBtn.querySelector('.icon').style.display = 'none';
     waveformContainer.classList.remove('hidden');
     recordingText.classList.remove('hidden');
+    
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     analyser = audioContext.createAnalyser();
     const source = audioContext.createMediaStreamSource(stream);
@@ -808,8 +740,7 @@ function startWaveform(stream) {
         analyser.getByteFrequencyData(dataArray);
 
         const averageVolume = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
-        const volumeThreshold = 15;
-        if (averageVolume > volumeThreshold) {
+        if (averageVolume > 15) {
             soundDetected = true;
         }
         
@@ -822,8 +753,8 @@ function startWaveform(stream) {
         for (let i = 0; i < bufferLength; i++) {
             const barHeight = dataArray[i] / 2.5;
             const gradient = canvasCtx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
-            gradient.addColorStop(0, '#22d3ee');
-            gradient.addColorStop(1, '#14b8a6');
+            gradient.addColorStop(0, '#8EB69B');
+            gradient.addColorStop(1, '#235347');
             canvasCtx.fillStyle = gradient;
             canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
             x += barWidth + 1;
@@ -835,6 +766,8 @@ function startWaveform(stream) {
 function stopWaveform() {
     if (waveformAnimationId) cancelAnimationFrame(waveformAnimationId);
     if (audioContext && audioContext.state !== 'closed') audioContext.close();
+    recordBtn.querySelector('.text').style.display = 'block';
+    recordBtn.querySelector('.icon').style.display = 'block';
     waveformContainer.classList.add('hidden');
     recordingText.classList.add('hidden');
 }
@@ -853,81 +786,11 @@ function handleRandomPractice() {
     fetchAndDisplayIPA();
 }
 
-function applyTheme(theme) {
-    if (theme === 'dark') {
-        document.documentElement.classList.add('dark');
-        themeIconLight.classList.add('hidden');
-        themeIconDark.classList.remove('hidden');
-    } else {
-        document.documentElement.classList.remove('dark');
-        themeIconLight.classList.remove('hidden');
-        themeIconDark.classList.add('hidden');
-    }
-}
-
-function toggleHistoryPanel(show) {
-    if (show) {
-        panelOverlay.classList.remove('hidden');
-        historyPanel.classList.remove('translate-x-full');
-        document.body.style.overflow = 'hidden';
-    } else {
-        panelOverlay.classList.add('hidden');
-        historyPanel.classList.add('translate-x-full');
-        document.body.style.overflow = '';
-    }
-}
 
 // Initial setup
-async function init() {
-    // Theme setup
-    let savedTheme = 'light';
-    try {
-        savedTheme = localStorage.getItem('theme') || 'light';
-    } catch (e) {
-        console.warn("Could not access localStorage. Defaulting to light theme.");
-    }
-    applyTheme(savedTheme);
-    
-    themeToggle.addEventListener('click', () => {
-        const currentTheme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        try {
-            localStorage.setItem('theme', newTheme);
-        } catch(e) {
-            console.warn("Could not save theme to localStorage.");
-        }
-        applyTheme(newTheme);
-    });
-
+function init() {
     accentSelect.value = 'British English';
 
-    // Firebase setup
-    try {
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                userId = user.uid;
-                loadHistory();
-            }
-        });
-
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-            await signInAnonymously(auth);
-        }
-
-    } catch (error) {
-        console.error("Firebase initialization failed:", error);
-        showMessage("Không thể kết nối đến dịch vụ lưu trữ lịch sử.", "error");
-    }
-
-
-    // Event Listeners
     textInput.addEventListener('input', () => {
         const currentLength = textInput.value.length;
         const maxLength = textInput.getAttribute('maxlength');
@@ -953,11 +816,6 @@ async function init() {
             fetchAndDisplayIPA();
         }
     });
-
-    // History panel listeners
-    historyToggle.addEventListener('click', () => toggleHistoryPanel(true));
-    closeHistoryPanel.addEventListener('click', () => toggleHistoryPanel(false));
-    panelOverlay.addEventListener('click', () => toggleHistoryPanel(false));
 }
 
 init();
